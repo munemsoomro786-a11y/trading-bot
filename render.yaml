@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: ai-trading-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server_flask:app
+    plan: free
