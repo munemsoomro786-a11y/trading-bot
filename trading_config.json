@@ -1,0 +1,28 @@
+{
+    "symbol": "BTC/USDT",
+    "timeframe": "15m",
+    "initial_balance": 50.0,
+    "risk_per_trade_pct": 2.0,
+    "risk_reward_ratio": 2.0,
+    "atr_sl_multiplier": 1.5,
+    "max_open_positions": 2,
+    "pairs_to_monitor": [
+        "BTC/USDT", 
+        "ETH/USDT", 
+        "SOL/USDT"
+    ],
+    "bot_active": true,
+    "poll_interval_seconds": 5,
+    "strategy_parameters": {
+        "ema_fast": 9,
+        "ema_slow": 21,
+        "ema_trend": 200,
+        "rsi_period": 14,
+        "rsi_oversold": 40,
+        "rsi_overbought": 60,
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "atr_period": 14
+    }
+}

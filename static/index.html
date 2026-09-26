@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Paper Trading Bot | Autonomous Algorithmic Trader</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- TradingView Lightweight Charts CDN -->
+    <script src="https://unpkg.com/lightweight-charts@4.0.1/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- TOP HEADER NAVBAR -->
+        <header class="navbar">
+            <div class="brand">
+                <div class="logo-icon"><i class="fa-solid fa-robot"></i></div>
+                <div class="brand-text">
+                    <h1>AI Trading Bot <span class="badge-demo">PAPER TRADING DEMO</span></h1>
+                    <p class="subtitle">Real-Time Market Reading & Automated Order Execution</p>
+                </div>
+            </div>
+
+            <div class="header-controls">
+                <div class="pair-selector">
+                    <label><i class="fa-solid fa-coins"></i> Symbol:</label>
+                    <select id="symbolSelect" onchange="changeSymbol()">
+                        <option value="BTC/USDT">BTC/USDT</option>
+                        <option value="ETH/USDT">ETH/USDT</option>
+                        <option value="SOL/USDT">SOL/USDT</option>
+                        <option value="BNB/USDT">BNB/USDT</option>
+                        <option value="XRP/USDT">XRP/USDT</option>
+                        <option value="ADA/USDT">ADA/USDT</option>
+                        <option value="DOGE/USDT">DOGE/USDT</option>
+                        <option value="AVAX/USDT">AVAX/USDT</option>
+                        <option value="LINK/USDT">LINK/USDT</option>
+                        <option value="DOT/USDT">DOT/USDT</option>
+                        <option value="NEAR/USDT">NEAR/USDT</option>
+                    </select>
+                </div>
+
+                <div class="timeframe-selector">
+                    <button class="tf-btn" onclick="changeTimeframe('5m')">5m</button>
+                    <button class="tf-btn active" onclick="changeTimeframe('15m')">15m</button>
+                    <button class="tf-btn" onclick="changeTimeframe('1h')">1h</button>
+                    <button class="tf-btn" onclick="changeTimeframe('4h')">4h</button>
+                </div>
+
+                <div class="status-badge" id="statusBadge">
+                    <span class="status-dot pulsing"></span> <span id="statusText">BOT RUNNING</span>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-success" id="startBtn" onclick="startBot()"><i class="fa-solid fa-play"></i> Start</button>
+                    <button class="btn btn-warning" id="pauseBtn" onclick="pauseBot()"><i class="fa-solid fa-pause"></i> Pause</button>
+                    <button class="btn btn-primary" onclick="openBacktestModal()"><i class="fa-solid fa-bolt"></i> Backtest</button>
+                    <button class="btn btn-outline" onclick="resetAccount()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- SUMMARY STATS BAR -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span><i class="fa-solid fa-wallet"></i> Total Equity</span>
+                    <span class="metric-badge" id="pnlBadge">+0.00%</span>
+                </div>
+                <div class="metric-value" id="equityVal">$10,000.00</div>
+                <div class="metric-footer">Initial: $<span id="initialBalanceVal">10,000.00</span></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span><i class="fa-solid fa-chart-line"></i> Realized PnL</span>
+                </div>
+                <div class="metric-value" id="netPnlVal">$0.00</div>
+                <div class="metric-footer">Unrealized: $<span id="unrealizedPnlVal">0.00</span></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span><i class="fa-solid fa-trophy"></i> Win Rate</span>
+                </div>
+                <div class="metric-value highlight-cyan" id="winRateVal">0.0%</div>
+                <div class="metric-footer"><span id="winCountVal">0</span> Wins / <span id="lossCountVal">0</span> Losses</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span><i class="fa-solid fa-scale-balanced"></i> Profit Factor</span>
+                </div>
+                <div class="metric-value" id="profitFactorVal">1.00</div>
+                <div class="metric-footer">Total Trades: <span id="totalTradesVal">0</span></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span><i class="fa-solid fa-layer-group"></i> Active Positions</span>
+                </div>
+                <div class="metric-value" id="activePositionsVal">0 / 3</div>
+                <div class="metric-footer">Risk Per Trade: 2.0%</div>
+            </div>
+        </div>
+
+        <!-- MAIN DASHBOARD CONTENT -->
+        <div class="main-layout">
+            <!-- LEFT SECTION: CHART & SIGNAL -->
+            <div class="chart-section">
+                <!-- AI SIGNAL BANNER -->
+                <div class="signal-banner" id="signalBanner">
+                    <div class="signal-badge neutral" id="signalBadge"><i class="fa-solid fa-compass"></i> AI SIGNAL: HOLD</div>
+                    <div class="signal-details">
+                        <span id="signalReason">Market scanning... Confluence evaluation active.</span>
+                        <span class="signal-targets" id="signalTargets"></span>
+                    </div>
+                    <div class="indicator-chips">
+                        <span class="chip">RSI: <strong id="chipRsi">--</strong></span>
+                        <span class="chip">EMA Fast: <strong id="chipEmaFast">--</strong></span>
+                        <span class="chip">EMA Slow: <strong id="chipEmaSlow">--</strong></span>
+                    </div>
+                </div>
+
+                <!-- CHART CONTAINER -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span id="chartSymbol">BTC/USDT</span> Candlestick & Indicator Chart
+                        </div>
+                        <div class="live-price-box">
+                            Current Price: <span id="livePriceVal" class="price">$0.00</span>
+                        </div>
+                    </div>
+                    <div id="tvChartContainer" class="tv-chart"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT SECTION: LIVE AI LOGS -->
+            <div class="logs-section">
+                <div class="card logs-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-terminal"></i> AI Live Execution Log</h3>
+                        <span class="live-tag">● LIVE TICKER</span>
+                    </div>
+                    <div class="logs-container" id="logsContainer">
+                        <div class="log-entry info"><span class="log-time">[System]</span> Bot initialized. Monitoring live market ticks...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM SECTION: POSITIONS & TRADE HISTORY -->
+        <div class="tables-section">
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="switchTab('positions')"><i class="fa-solid fa-list-check"></i> Open Positions (<span id="tabPositionsCount">0</span>)</button>
+                <button class="tab-btn" onclick="switchTab('history')"><i class="fa-solid fa-clock-rotate-left"></i> Trade History (<span id="tabHistoryCount">0</span>)</button>
+            </div>
+
+            <!-- POSITIONS TAB -->
+            <div class="tab-content active" id="tabPositions">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Entry Price</th>
+                                <th>Current Price</th>
+                                <th>Stop Loss (SL)</th>
+                                <th>Take Profit (TP)</th>
+                                <th>Position Value</th>
+                                <th>Unrealized PnL ($)</th>
+                                <th>PnL (%)</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionsTableBody">
+                            <tr>
+                                <td colspan="10" class="empty-msg">No active open positions right now. Bot is scanning for entry signals.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- HISTORY TAB -->
+            <div class="tab-content" id="tabHistory">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Opened At</th>
+                                <th>Closed At</th>
+                                <th>Entry Price</th>
+                                <th>Exit Price</th>
+                                <th>Exit Reason</th>
+                                <th>PnL ($)</th>
+                                <th>PnL (%)</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr>
+                                <td colspan="10" class="empty-msg">No completed trade history yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BACKTEST MODAL -->
+    <div class="modal-overlay" id="backtestModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-bolt"></i> Historical Strategy Backtest</h3>
+                <button class="close-btn" onclick="closeBacktestModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Run historical backtest over recent market candles to evaluate strategy accuracy, win rate, and profit factor before live paper trading.</p>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Backtest Symbol:</label>
+                        <select id="btSymbol">
+                            <option value="BTC/USDT">BTC/USDT</option>
+                            <option value="ETH/USDT">ETH/USDT</option>
+                            <option value="SOL/USDT">SOL/USDT</option>
+                            <option value="BNB/USDT">BNB/USDT</option>
+                            <option value="XRP/USDT">XRP/USDT</option>
+                            <option value="ADA/USDT">ADA/USDT</option>
+                            <option value="DOGE/USDT">DOGE/USDT</option>
+                            <option value="AVAX/USDT">AVAX/USDT</option>
+                            <option value="LINK/USDT">LINK/USDT</option>
+                            <option value="DOT/USDT">DOT/USDT</option>
+                            <option value="NEAR/USDT">NEAR/USDT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Timeframe:</label>
+                        <select id="btTimeframe">
+                            <option value="15m" selected>15 Minutes</option>
+                            <option value="1h">1 Hour</option>
+                            <option value="4h">4 Hours</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-full" onclick="executeBacktest()"><i class="fa-solid fa-play"></i> Run Backtest Analysis</button>
+
+                <div class="backtest-results" id="btResults" style="display: none;">
+                    <hr>
+                    <h4>Backtest Performance Summary</h4>
+                    <div class="bt-stats-grid">
+                        <div class="bt-stat"><span class="label">Win Rate:</span> <strong id="btWinRate" class="highlight-cyan">0%</strong></div>
+                        <div class="bt-stat"><span class="label">Net Profit:</span> <strong id="btNetProfit">$0.00 (0%)</strong></div>
+                        <div class="bt-stat"><span class="label">Profit Factor:</span> <strong id="btProfitFactor">0.0</strong></div>
+                        <div class="bt-stat"><span class="label">Total Trades:</span> <strong id="btTotalTrades">0</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
