@@ -130,8 +130,18 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <div class="chart-title">
-                            <span id="chartSymbol">BTC/USDT</span> Candlestick & Indicator Chart
+                            <span id="chartSymbol">BTC/USDT</span> Live Chart
                         </div>
+
+                        <!-- TOP 5 QUICK COIN SELECTOR BAR -->
+                        <div class="quick-coins-bar">
+                            <span class="quick-coin-pill active" id="pill-BTC" onclick="selectSymbol('BTC/USDT')"><i class="fa-solid fa-coins" style="color:#F59E0B;"></i> BTC</span>
+                            <span class="quick-coin-pill" id="pill-ETH" onclick="selectSymbol('ETH/USDT')"><i class="fa-brands fa-ethereum" style="color:#3B82F6;"></i> ETH</span>
+                            <span class="quick-coin-pill" id="pill-SOL" onclick="selectSymbol('SOL/USDT')"><i class="fa-solid fa-bolt" style="color:#8B5CF6;"></i> SOL</span>
+                            <span class="quick-coin-pill" id="pill-BNB" onclick="selectSymbol('BNB/USDT')"><i class="fa-solid fa-gem" style="color:#F59E0B;"></i> BNB</span>
+                            <span class="quick-coin-pill" id="pill-XRP" onclick="selectSymbol('XRP/USDT')"><i class="fa-solid fa-wave-square" style="color:#06B6D4;"></i> XRP</span>
+                        </div>
+
                         <div class="live-price-box">
                             Current Price: <span id="livePriceVal" class="price">$0.00</span>
                         </div>

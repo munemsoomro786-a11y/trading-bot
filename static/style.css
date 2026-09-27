@@ -351,12 +351,49 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .chart-title {
     font-family: var(--font-heading);
     font-size: 16px;
     font-weight: 600;
+}
+
+/* TOP 5 QUICK COINS SELECTOR BAR */
+.quick-coins-bar {
+    display: flex;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.quick-coin-pill {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 5px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.quick-coin-pill:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.quick-coin-pill.active {
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
 }
 
 .live-price-box {

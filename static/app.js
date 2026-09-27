@@ -287,9 +287,18 @@ async function fetchLogs() {
 function selectSymbol(symbol) {
     if (!symbol) return;
     currentSymbol = symbol;
+    
     const select = document.getElementById("symbolSelect");
     if (select) select.value = symbol;
+    
     document.getElementById("chartSymbol").innerText = symbol;
+
+    // Toggle active state on quick coin pills
+    document.querySelectorAll(".quick-coin-pill").forEach(pill => pill.classList.remove("active"));
+    const baseCoin = symbol.split('/')[0];
+    const targetPill = document.getElementById(`pill-${baseCoin}`);
+    if (targetPill) targetPill.classList.add("active");
+
     fetchChartData();
 }
 
