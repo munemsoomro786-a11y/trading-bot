@@ -7,15 +7,15 @@ class TradingStrategy:
         self.config = config or {}
         self.rr_ratio = self.config.get("risk_reward_ratio", 2.0)
         self.atr_sl_mult = self.config.get("atr_sl_multiplier", 1.5)
-        self.adx_threshold = self.config.get("adx_threshold", 20.0)
+        self.adx_threshold = self.config.get("adx_threshold", 15.0)
 
     def analyze(self, df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
         """
-        HIGH-ACCURACY MULTI-CONFLUENCE STRATEGY ENGINE:
+        HIGH-ACCURACY BALANCED MULTI-CONFLUENCE STRATEGY ENGINE:
         1. Multi-Timeframe (MTF) 1-Hour Macro Trend Alignment.
-        2. ADX Market Regime Filter (> 20.0 Trend Strength).
+        2. ADX Market Regime Filter (> 15.0 Trend Strength).
         3. Support & Resistance / Pivot Level Filter.
-        4. Candlestick Price Action Pattern Confirmation.
+        4. Candlestick Price Action & Early Breakdown/Breakout Confirmation.
         5. ATR Volatility-Based Stop Loss & Take Profit.
         """
         if df is None or len(df) < 30:
@@ -40,6 +40,10 @@ class TradingStrategy:
         prev_ema_fast = float(prev_candle['ema_fast'])
         prev_ema_slow = float(prev_candle['ema_slow'])
         
+        prev_close = float(prev_candle['close'])
+        prev_low = float(prev_candle['low'])
+        prev_high = float(prev_candle['high'])
+        
         rsi = float(closed_candle['rsi'])
         prev_rsi = float(prev_candle['rsi'])
         
@@ -57,10 +61,10 @@ class TradingStrategy:
         pattern_bearish = bool(closed_candle.get('pattern_bearish', False))
         pattern_name = str(closed_candle.get('pattern_name', 'None'))
 
-        # Volume Confirmation (> 1.05x Volume SMA)
+        # Volume Confirmation (> 0.95x Volume SMA for Balanced Active Trading)
         vol_sma = df['volume'].rolling(window=20).mean().iloc[-2] if 'volume' in df.columns else 0
         closed_vol = float(closed_candle['volume']) if 'volume' in closed_candle else 0
-        volume_surge = (closed_vol >= vol_sma * 1.05) if vol_sma > 0 else True
+        volume_surge = (closed_vol >= vol_sma * 0.95) if vol_sma > 0 else True
 
         # =========================================================================
         # 1. MULTI-TIMEFRAME (MTF) HIGHER TIMEFRAME TREND FILTER (1-HOUR CHART)
@@ -108,7 +112,7 @@ class TradingStrategy:
             }
 
         # =========================================================================
-        # 2. ADX MARKET REGIME CHECK (Block Trades in Weak/Sideways Market)
+        # 2. ADX MARKET REGIME CHECK (Block Trades in Weak Sideways Market < 15.0)
         # =========================================================================
         is_trending_market = adx >= self.adx_threshold
 
@@ -133,18 +137,25 @@ class TradingStrategy:
         # 3. BULLISH LONG CONFLUENCE (Allowed ONLY in MTF & Local Uptrend)
         # =========================================================================
         if is_macro_uptrend:
-            ema_aligned = (prev_ema_fast <= prev_ema_slow and ema_fast > ema_slow) or (ema_fast > ema_slow and (ema_fast - ema_slow) > (prev_ema_fast - prev_ema_slow))
-            rsi_bullish = 42 <= rsi <= 68 and rsi > prev_rsi
-            macd_bullish = macd_hist > 0 and macd_hist > prev_macd_hist
+            # FIX B: Early Trigger via High Breakout + EMA alignment
+            ema_aligned = (prev_ema_fast <= prev_ema_slow and ema_fast > ema_slow) or \
+                          (ema_fast > ema_slow and (ema_fast - ema_slow) > (prev_ema_fast - prev_ema_slow)) or \
+                          (close > prev_high and close > ema_fast and macd_hist > prev_macd_hist)
+                          
+            rsi_bullish = 38 <= rsi <= 72 and rsi > prev_rsi
+            macd_bullish = macd_hist > prev_macd_hist or macd_hist > 0
             bullish_candle = close > open_p
             
             # S/R Filter: Avoid buying directly into major Resistance level
             not_at_resistance = close < (resistance * 0.998)
 
-            if ema_aligned and rsi_bullish and macd_bullish and volume_surge and bullish_candle and not_at_resistance:
+            # FIX A: Avoid buying when already overbought/extended far above EMA
+            not_overextended_long = ((close - ema_slow) / ema_slow <= 0.018) and (rsi <= 68)
+
+            if ema_aligned and rsi_bullish and macd_bullish and volume_surge and bullish_candle and not_at_resistance and not_overextended_long:
                 signal = "BUY"
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bullish else ""
-                reason = f"🚀 [MTF UPTREND] Bullish Confluence: EMA Cross + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
+                reason = f"🚀 [MTF UPTREND] Bullish Confluence: Early Trigger/EMA + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
                 sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.012)
                 stop_loss = current_live_price - sl_dist
                 take_profit = current_live_price + (sl_dist * self.rr_ratio)
@@ -153,18 +164,25 @@ class TradingStrategy:
         # 4. BEARISH SHORT CONFLUENCE (Allowed ONLY in MTF & Local Downtrend)
         # =========================================================================
         elif is_macro_downtrend:
-            ema_bearish_aligned = (prev_ema_fast >= prev_ema_slow and ema_fast < ema_slow) or (ema_fast < ema_slow and (ema_slow - ema_fast) > (prev_ema_slow - prev_ema_fast))
-            rsi_bearish = 32 <= rsi <= 58 and rsi < prev_rsi
-            macd_bearish = macd_hist < 0 and macd_hist < prev_macd_hist
+            # FIX B: Early Trigger via Low Breakdown + EMA alignment
+            ema_bearish_aligned = (prev_ema_fast >= prev_ema_slow and ema_fast < ema_slow) or \
+                                  (ema_fast < ema_slow and (ema_slow - ema_fast) > (prev_ema_slow - prev_ema_slow)) or \
+                                  (close < prev_low and close < ema_fast and macd_hist < prev_macd_hist)
+
+            rsi_bearish = 28 <= rsi <= 62 and rsi < prev_rsi
+            macd_bearish = macd_hist < prev_macd_hist or macd_hist < 0
             bearish_candle = close < open_p
             
             # S/R Filter: Avoid shorting directly into major Support level
             not_at_support = close > (support * 1.002)
 
-            if ema_bearish_aligned and rsi_bearish and macd_bearish and volume_surge and bearish_candle and not_at_support:
+            # FIX A: Avoid shorting when already oversold/extended far below EMA (Prevents Bottom Shorting)
+            not_overextended_short = ((ema_slow - close) / ema_slow <= 0.018) and (rsi >= 32)
+
+            if ema_bearish_aligned and rsi_bearish and macd_bearish and volume_surge and bearish_candle and not_at_support and not_overextended_short:
                 signal = "SELL"
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bearish else ""
-                reason = f"📉 [MTF DOWNTREND] Bearish Confluence: EMA Death Cross + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
+                reason = f"📉 [MTF DOWNTREND] Bearish Confluence: Early Breakdown/EMA + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
                 sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.012)
                 stop_loss = current_live_price + sl_dist
                 take_profit = current_live_price - (sl_dist * self.rr_ratio)
