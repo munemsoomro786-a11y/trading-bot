@@ -42,6 +42,21 @@ class DataFetcher:
             print(f"Direct Binance fetch error for {symbol}: {e}")
         return None
 
+    def fetch_fear_and_greed_index() -> dict:
+        """Fetch live Crypto Fear & Greed Index score and classification."""
+        try:
+            url = "https://api.alternative.me/fng/"
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json().get('data', [])[0]
+                return {
+                    "score": int(data.get('value', 50)),
+                    "classification": data.get('value_classification', 'Neutral')
+                }
+        except Exception as e:
+            pass
+        return {"score": 50, "classification": "Neutral"}
+
     def fetch_crypto_coingecko(self, symbol="BTC/USDT") -> float:
         """Fetch current price fallback from CoinGecko."""
         coin_map = {"BTC/USDT": "bitcoin", "ETH/USDT": "ethereum", "SOL/USDT": "solana"}

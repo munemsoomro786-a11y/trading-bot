@@ -85,6 +85,28 @@ class TradingStrategy:
         is_macro_uptrend = (close > ema_trend) and htf_macro_uptrend
         is_macro_downtrend = (close < ema_trend) and htf_macro_downtrend
 
+        # Volatility Spike / News Event Filter (Candle range > 2.5x ATR)
+        candle_high = float(closed_candle['high'])
+        candle_low = float(closed_candle['low'])
+        candle_range = candle_high - candle_low
+        volatility_spike = (candle_range >= 2.5 * atr)
+
+        if volatility_spike:
+            return {
+                "signal": "HOLD",
+                "reason": f"⚠️ Extreme Volatility / News Event Spike Detected ({candle_range:.1f} > 2.5x ATR). Trade paused.",
+                "current_price": current_live_price,
+                "stop_loss": 0.0,
+                "take_profit": 0.0,
+                "atr": round(atr, 4),
+                "adx": round(adx, 2),
+                "rsi": round(rsi, 2),
+                "ema_fast": round(ema_fast, 2),
+                "ema_slow": round(ema_slow, 2),
+                "macd_hist": round(macd_hist, 4),
+                "pattern_name": pattern_name
+            }
+
         # =========================================================================
         # 2. ADX MARKET REGIME CHECK (Block Trades in Weak/Sideways Market)
         # =========================================================================
