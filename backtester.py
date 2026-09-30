@@ -47,19 +47,29 @@ class Backtester:
                 reason = ""
 
                 if side == "BUY":
+                    # Move SL to Break-Even if price reaches >= 1.0% profit
+                    max_pnl_pct = ((high_price - entry) / entry) * 100.0
+                    if max_pnl_pct >= 1.00 and sl < entry:
+                        sl = round(entry * 1.0005, 4)
+
                     if low_price <= sl:
                         closed = True
                         exit_price = sl
-                        reason = "STOP_LOSS"
+                        reason = "BREAK_EVEN" if sl >= entry else "STOP_LOSS"
                     elif high_price >= tp:
                         closed = True
                         exit_price = tp
                         reason = "TAKE_PROFIT"
                 else:  # SELL (Short)
+                    # Move SL to Break-Even if price reaches >= 1.0% profit
+                    max_pnl_pct = ((entry - low_price) / entry) * 100.0
+                    if max_pnl_pct >= 1.00 and sl > entry:
+                        sl = round(entry * 0.9995, 4)
+
                     if high_price >= sl:
                         closed = True
                         exit_price = sl
-                        reason = "STOP_LOSS"
+                        reason = "BREAK_EVEN" if sl <= entry else "STOP_LOSS"
                     elif low_price <= tp:
                         closed = True
                         exit_price = tp

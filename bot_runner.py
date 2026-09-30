@@ -90,8 +90,8 @@ class TradingBotRunner:
                     for trade in closed_trades:
                         if trade["close_reason"] == "TAKE_PROFIT":
                             status = "🎯 TAKE PROFIT HIT"
-                        elif trade["close_reason"] == "TRAILING_STOP_LOSS":
-                            status = "🛡️ TRAILING STOP LOSS HIT (PROFIT LOCKED)"
+                        elif trade["close_reason"] in ["BREAK_EVEN", "TRAILING_STOP_LOSS"]:
+                            status = "🛡️ BREAK-EVEN HIT (NO LOSS)"
                         else:
                             status = "🛑 STOP LOSS HIT"
                         

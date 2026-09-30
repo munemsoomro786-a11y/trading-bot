@@ -7,7 +7,7 @@ class TradingStrategy:
         self.config = config or {}
         self.rr_ratio = self.config.get("risk_reward_ratio", 2.0)
         self.atr_sl_mult = self.config.get("atr_sl_multiplier", 1.5)
-        self.adx_threshold = self.config.get("adx_threshold", 15.0)
+        self.adx_threshold = self.config.get("adx_threshold", 18.0)
 
     def analyze(self, df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
         """

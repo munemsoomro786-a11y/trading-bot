@@ -101,47 +101,40 @@ class PaperAccount:
             if side == "BUY":
                 pnl = (current_price - entry) * units
                 pnl_pct = ((current_price - entry) / entry) * 100.0
-                hit_sl = current_price <= sl
-                hit_tp = current_price >= tp
             else:  # SELL (Short)
                 pnl = (entry - current_price) * units
                 pnl_pct = ((entry - current_price) / entry) * 100.0
-                hit_sl = current_price >= sl
-                hit_tp = current_price <= tp
 
             pos["unrealized_pnl"] = round(pnl, 2)
             pos["unrealized_pnl_pct"] = round(pnl_pct, 2)
 
-            # Dynamic Trailing Stop Loss Logic (Locking Profits & Break-Even)
+            # Break-Even Stop Loss Logic (Move SL to Entry after 1.0% Profit)
             if side == "BUY":
-                # Stage 1: Move to Break-Even when profit >= 0.20%
-                if pnl_pct >= 0.20 and sl < entry:
+                # Move to Break-Even when profit >= 1.0%
+                if pnl_pct >= 1.00 and sl < entry:
                     pos["stop_loss"] = round(entry * 1.0005, 4)  # Break-Even + tiny buffer
-                # Stage 2: Dynamic Trailing SL locking 50% of unrealized profit
-                elif pnl_pct >= 0.50:
-                    new_sl = round(entry + (current_price - entry) * 0.55, 4)
-                    if new_sl > pos["stop_loss"]:
-                        pos["stop_loss"] = new_sl
             else:  # SELL (Short)
-                # Stage 1: Move to Break-Even when profit >= 0.20%
-                if pnl_pct >= 0.20 and sl > entry:
+                # Move to Break-Even when profit >= 1.0%
+                if pnl_pct >= 1.00 and sl > entry:
                     pos["stop_loss"] = round(entry * 0.9995, 4)  # Break-Even
-                # Stage 2: Dynamic Trailing SL locking 50% of unrealized profit
-                elif pnl_pct >= 0.50:
-                    new_sl = round(entry - (entry - current_price) * 0.55, 4)
-                    if new_sl < pos["stop_loss"]:
-                        pos["stop_loss"] = new_sl
 
             # Re-read SL and TP
             sl = pos["stop_loss"]
             tp = pos["take_profit"]
+
+            if side == "BUY":
+                hit_sl = current_price <= sl
+                hit_tp = current_price >= tp
+            else:  # SELL (Short)
+                hit_sl = current_price >= sl
+                hit_tp = current_price <= tp
 
             # Check for SL or TP hit
             if hit_tp:
                 close_res = self._close_position_internal(pos, tp, "TAKE_PROFIT")
                 closed_in_tick.append(close_res)
             elif hit_sl:
-                reason = "TRAILING_STOP_LOSS" if (side == "BUY" and sl >= entry) or (side == "SELL" and sl <= entry) else "STOP_LOSS"
+                reason = "BREAK_EVEN" if (side == "BUY" and sl >= entry) or (side == "SELL" and sl <= entry) else "STOP_LOSS"
                 close_res = self._close_position_internal(pos, sl, reason)
                 closed_in_tick.append(close_res)
             else:
