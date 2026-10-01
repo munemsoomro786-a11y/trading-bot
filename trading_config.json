@@ -1,7 +1,7 @@
 {
     "symbol": "BTC/USDT",
     "timeframe": "15m",
-    "initial_balance": 50.0,
+    "initial_balance": 100.0,
     "risk_per_trade_pct": 2.0,
     "risk_reward_ratio": 2.0,
     "atr_sl_multiplier": 1.5,

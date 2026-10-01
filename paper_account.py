@@ -6,7 +6,7 @@ from datetime import datetime
 DATA_FILE = "paper_account_data.json"
 
 class PaperAccount:
-    def __init__(self, initial_balance: float = 50.0):
+    def __init__(self, initial_balance: float = 100.0):
         self.initial_balance = initial_balance
         self.balance = initial_balance
         self.positions = []  # Open active positions
