@@ -71,14 +71,18 @@ class TradingStrategy:
         # =========================================================================
         htf_macro_uptrend = True
         htf_macro_downtrend = True
+        htf_adx = 25.0
         
         if htf_df is not None and len(htf_df) >= 30:
             htf_df = add_all_indicators(htf_df, self.config.get("strategy_parameters", {}))
             htf_closed = htf_df.iloc[-2]
             htf_close = float(htf_closed['close'])
             htf_ema_trend = float(htf_closed['ema_trend'])
-            htf_macro_uptrend = htf_close > htf_ema_trend
-            htf_macro_downtrend = htf_close < htf_ema_trend
+            htf_adx = float(htf_closed['adx']) if 'adx' in htf_closed and not np.isnan(htf_closed['adx']) else 25.0
+            
+            # Require 1-Hour ADX >= 20.0 to confirm macro trend strength
+            htf_macro_uptrend = (htf_close > htf_ema_trend) and (htf_adx >= 20.0)
+            htf_macro_downtrend = (htf_close < htf_ema_trend) and (htf_adx >= 20.0)
 
         signal = "HOLD"
         reason = "Monitoring Multi-Confluence Aligned Signals..."
