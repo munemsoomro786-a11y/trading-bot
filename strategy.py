@@ -5,18 +5,18 @@ from indicators import add_all_indicators
 class TradingStrategy:
     def __init__(self, config: dict = None):
         self.config = config or {}
-        self.rr_ratio = self.config.get("risk_reward_ratio", 2.0)
+        self.rr_ratio = self.config.get("risk_reward_ratio", 1.5)
         self.atr_sl_mult = self.config.get("atr_sl_multiplier", 1.5)
-        self.adx_threshold = self.config.get("adx_threshold", 18.0)
+        self.adx_threshold = self.config.get("adx_threshold", 20.0)
 
     def analyze(self, df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
         """
-        HIGH-ACCURACY BALANCED MULTI-CONFLUENCE STRATEGY ENGINE:
+        HIGH-ACCURACY OPTIMIZED MULTI-CONFLUENCE STRATEGY ENGINE:
         1. Multi-Timeframe (MTF) 1-Hour Macro Trend Alignment.
-        2. ADX Market Regime Filter (> 15.0 Trend Strength).
-        3. Support & Resistance / Pivot Level Filter.
-        4. Candlestick Price Action & Early Breakdown/Breakout Confirmation.
-        5. ATR Volatility-Based Stop Loss & Take Profit.
+        2. ADX Market Regime Filter (>= 20.0 Trend Strength).
+        3. Clean EMA 9/21 Crossover & MACD Momentum Acceleration.
+        4. Dynamic ATR Volatility-Based Stop Loss & Take Profit.
+        5. Overbought/Oversold & Support/Resistance Protection.
         """
         if df is None or len(df) < 30:
             return {"signal": "HOLD", "reason": "Insufficient candle data", "current_price": 0.0}
@@ -50,8 +50,8 @@ class TradingStrategy:
         macd_hist = float(closed_candle['macd_hist'])
         prev_macd_hist = float(prev_candle['macd_hist'])
         
-        adx = float(closed_candle['adx']) if 'adx' in closed_candle and not np.isnan(closed_candle['adx']) else 25.0
-        atr = float(closed_candle['atr']) if 'atr' in closed_candle and not np.isnan(closed_candle['atr']) else current_live_price * 0.015
+        adx = float(closed_candle['adx']) if 'adx' in closed_candle and not np.isnan(closed_candle['adx']) else 20.0
+        atr = float(closed_candle['atr']) if 'atr' in closed_candle and not np.isnan(closed_candle['atr']) else current_live_price * 0.01
         
         support = float(closed_candle['support']) if 'support' in closed_candle else current_live_price * 0.98
         resistance = float(closed_candle['resistance']) if 'resistance' in closed_candle else current_live_price * 1.02
@@ -61,28 +61,24 @@ class TradingStrategy:
         pattern_bearish = bool(closed_candle.get('pattern_bearish', False))
         pattern_name = str(closed_candle.get('pattern_name', 'None'))
 
-        # Volume Confirmation (> 0.95x Volume SMA for Balanced Active Trading)
+        # Volume Confirmation (> 0.90x Volume SMA)
         vol_sma = df['volume'].rolling(window=20).mean().iloc[-2] if 'volume' in df.columns else 0
         closed_vol = float(closed_candle['volume']) if 'volume' in closed_candle else 0
-        volume_surge = (closed_vol >= vol_sma * 0.95) if vol_sma > 0 else True
+        volume_surge = (closed_vol >= vol_sma * 0.90) if vol_sma > 0 else True
 
         # =========================================================================
         # 1. MULTI-TIMEFRAME (MTF) HIGHER TIMEFRAME TREND FILTER (1-HOUR CHART)
         # =========================================================================
-        htf_macro_uptrend = True
-        htf_macro_downtrend = True
-        htf_adx = 25.0
+        htf_macro_uptrend = (close > ema_trend)
+        htf_macro_downtrend = (close < ema_trend)
         
         if htf_df is not None and len(htf_df) >= 30:
             htf_df = add_all_indicators(htf_df, self.config.get("strategy_parameters", {}))
             htf_closed = htf_df.iloc[-2]
             htf_close = float(htf_closed['close'])
             htf_ema_trend = float(htf_closed['ema_trend'])
-            htf_adx = float(htf_closed['adx']) if 'adx' in htf_closed and not np.isnan(htf_closed['adx']) else 25.0
-            
-            # Require 1-Hour ADX >= 20.0 to confirm macro trend strength
-            htf_macro_uptrend = (htf_close > htf_ema_trend) and (htf_adx >= 20.0)
-            htf_macro_downtrend = (htf_close < htf_ema_trend) and (htf_adx >= 20.0)
+            htf_macro_uptrend = (htf_close > htf_ema_trend)
+            htf_macro_downtrend = (htf_close < htf_ema_trend)
 
         signal = "HOLD"
         reason = "Monitoring Multi-Confluence Aligned Signals..."
@@ -116,7 +112,7 @@ class TradingStrategy:
             }
 
         # =========================================================================
-        # 2. ADX MARKET REGIME CHECK (Block Trades in Weak Sideways Market < 15.0)
+        # 2. ADX MARKET REGIME CHECK (Block Trades in Weak Sideways Market < 20.0)
         # =========================================================================
         is_trending_market = adx >= self.adx_threshold
 
@@ -141,26 +137,25 @@ class TradingStrategy:
         # 3. BULLISH LONG CONFLUENCE (Allowed ONLY in MTF & Local Uptrend)
         # =========================================================================
         if is_macro_uptrend:
-            # FIX B: Early Trigger via High Breakout + EMA alignment
-            ema_aligned = (prev_ema_fast <= prev_ema_slow and ema_fast > ema_slow) or \
-                          (ema_fast > ema_slow and (ema_fast - ema_slow) > (prev_ema_fast - prev_ema_slow)) or \
-                          (close > prev_high and close > ema_fast and macd_hist > prev_macd_hist)
+            # Clean EMA 9/21 Crossover or Fresh Bullish Momentum Alignment
+            ema_crossover = (prev_ema_fast <= prev_ema_slow and ema_fast > ema_slow)
+            ema_aligned = ema_crossover or (ema_fast > ema_slow and close > ema_fast and macd_hist > prev_macd_hist and rsi > prev_rsi)
                           
-            rsi_bullish = 38 <= rsi <= 72 and rsi > prev_rsi
-            macd_bullish = macd_hist > prev_macd_hist or macd_hist > 0
-            bullish_candle = close > open_p
+            rsi_bullish = 40 <= rsi <= 66 and rsi > prev_rsi
+            macd_bullish = macd_hist > prev_macd_hist and macd_hist > -atr * 0.1
+            bullish_candle = close >= open_p
             
             # S/R Filter: Avoid buying directly into major Resistance level
             not_at_resistance = close < (resistance * 0.998)
-
-            # FIX A: Avoid buying when already overbought/extended far above EMA
-            not_overextended_long = ((close - ema_slow) / ema_slow <= 0.018) and (rsi <= 68)
+            not_overextended_long = ((close - ema_slow) / ema_slow <= 0.015) and (rsi <= 65)
 
             if ema_aligned and rsi_bullish and macd_bullish and volume_surge and bullish_candle and not_at_resistance and not_overextended_long:
                 signal = "BUY"
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bullish else ""
-                reason = f"🚀 [MTF UPTREND] Bullish Confluence: Early Trigger/EMA + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
-                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.012)
+                reason = f"🚀 [MTF UPTREND] Bullish Confluence: EMA Cross/Momentum + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
+                
+                # Dynamic ATR-based Stop Loss & Take Profit (min 0.5% buffer)
+                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.005)
                 stop_loss = current_live_price - sl_dist
                 take_profit = current_live_price + (sl_dist * self.rr_ratio)
 
@@ -168,26 +163,25 @@ class TradingStrategy:
         # 4. BEARISH SHORT CONFLUENCE (Allowed ONLY in MTF & Local Downtrend)
         # =========================================================================
         elif is_macro_downtrend:
-            # FIX B: Early Trigger via Low Breakdown + EMA alignment
-            ema_bearish_aligned = (prev_ema_fast >= prev_ema_slow and ema_fast < ema_slow) or \
-                                  (ema_fast < ema_slow and (ema_slow - ema_fast) > (prev_ema_slow - prev_ema_slow)) or \
-                                  (close < prev_low and close < ema_fast and macd_hist < prev_macd_hist)
+            # Clean EMA 9/21 Bearish Crossover or Fresh Bearish Momentum Alignment
+            ema_bearish_crossover = (prev_ema_fast >= prev_ema_slow and ema_fast < ema_slow)
+            ema_bearish_aligned = ema_bearish_crossover or (ema_fast < ema_slow and close < ema_fast and macd_hist < prev_macd_hist and rsi < prev_rsi)
 
-            rsi_bearish = 28 <= rsi <= 62 and rsi < prev_rsi
-            macd_bearish = macd_hist < prev_macd_hist or macd_hist < 0
-            bearish_candle = close < open_p
+            rsi_bearish = 34 <= rsi <= 60 and rsi < prev_rsi
+            macd_bearish = macd_hist < prev_macd_hist and macd_hist < atr * 0.1
+            bearish_candle = close <= open_p
             
             # S/R Filter: Avoid shorting directly into major Support level
             not_at_support = close > (support * 1.002)
-
-            # FIX A: Avoid shorting when already oversold/extended far below EMA (Prevents Bottom Shorting)
-            not_overextended_short = ((ema_slow - close) / ema_slow <= 0.018) and (rsi >= 32)
+            not_overextended_short = ((ema_slow - close) / ema_slow <= 0.015) and (rsi >= 35)
 
             if ema_bearish_aligned and rsi_bearish and macd_bearish and volume_surge and bearish_candle and not_at_support and not_overextended_short:
                 signal = "SELL"
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bearish else ""
-                reason = f"📉 [MTF DOWNTREND] Bearish Confluence: Early Breakdown/EMA + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
-                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.012)
+                reason = f"📉 [MTF DOWNTREND] Bearish Confluence: EMA Cross/Breakdown + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
+                
+                # Dynamic ATR-based Stop Loss & Take Profit (min 0.5% buffer)
+                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.005)
                 stop_loss = current_live_price + sl_dist
                 take_profit = current_live_price - (sl_dist * self.rr_ratio)
 

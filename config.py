@@ -7,10 +7,11 @@ DEFAULT_CONFIG = {
     "symbol": "BTC/USDT",
     "timeframe": "15m",
     "initial_balance": 100.0,     # $100 Starting Balance
-    "risk_per_trade_pct": 2.0,    # Risk 2% of total equity per trade ($1.00 risk limit)
-    "risk_reward_ratio": 2.0,     # 1:2 Risk to Reward Ratio ($2.00 target profit)
+    "risk_per_trade_pct": 2.0,    # Risk 2% of total equity per trade
+    "risk_reward_ratio": 1.5,     # 1:1.5 Achievable Risk to Reward Ratio
     "atr_sl_multiplier": 1.5,     # Stop Loss distance = 1.5 * ATR
-    "max_open_positions": 2,      # Max 2 concurrent positions ($15 position size each)
+    "adx_threshold": 20.0,        # Trend filter threshold
+    "max_open_positions": 2,      # Max 2 concurrent positions
     "pairs_to_monitor": [
         "BTC/USDT", 
         "ETH/USDT", 

@@ -3,9 +3,9 @@
     "timeframe": "15m",
     "initial_balance": 100.0,
     "risk_per_trade_pct": 2.0,
-    "risk_reward_ratio": 2.0,
+    "risk_reward_ratio": 1.5,
     "atr_sl_multiplier": 1.5,
-    "adx_threshold": 18.0,
+    "adx_threshold": 20.0,
     "max_open_positions": 2,
     "pairs_to_monitor": [
         "BTC/USDT", 

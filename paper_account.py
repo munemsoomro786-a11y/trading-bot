@@ -108,14 +108,14 @@ class PaperAccount:
             pos["unrealized_pnl"] = round(pnl, 2)
             pos["unrealized_pnl_pct"] = round(pnl_pct, 2)
 
-            # Break-Even Stop Loss Logic (Move SL to Entry after 0.55% Profit)
+            # Break-Even Stop Loss Logic (Move SL to Entry after 0.75% Profit)
             if side == "BUY":
-                # Move to Break-Even when profit >= 0.55%
-                if pnl_pct >= 0.55 and sl < entry:
+                # Move to Break-Even when profit >= 0.75%
+                if pnl_pct >= 0.75 and sl < entry:
                     pos["stop_loss"] = round(entry * 1.0005, 4)  # Break-Even + tiny buffer
             else:  # SELL (Short)
-                # Move to Break-Even when profit >= 0.55%
-                if pnl_pct >= 0.55 and sl > entry:
+                # Move to Break-Even when profit >= 0.75%
+                if pnl_pct >= 0.75 and sl > entry:
                     pos["stop_loss"] = round(entry * 0.9995, 4)  # Break-Even
 
             # Re-read SL and TP
