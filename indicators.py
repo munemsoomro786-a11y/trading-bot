@@ -42,8 +42,8 @@ def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     atr = tr.ewm(alpha=1/period, adjust=False).mean()
     return atr
 
-def calculate_adx(df: pd.DataFrame, period: int = 14) -> pd.Series:
-    """Calculate Average Directional Index (ADX) to filter market regime (Trend vs Sideways)."""
+def calculate_adx(df: pd.DataFrame, period: int = 14):
+    """Calculate Average Directional Index (ADX) and +DI / -DI to filter market regime and trend direction."""
     high = df['high']
     low = df['low']
     close = df['close']
@@ -62,7 +62,7 @@ def calculate_adx(df: pd.DataFrame, period: int = 14) -> pd.Series:
 
     dx = 100 * (pos_di - neg_di).abs() / (pos_di + neg_di + 1e-10)
     adx = dx.ewm(alpha=1/period, adjust=False).mean()
-    return adx
+    return adx, pos_di, neg_di
 
 def calculate_bollinger_bands(df: pd.DataFrame, period: int = 20, std_dev: float = 2.0, column: str = 'close'):
     """Calculate Bollinger Bands (Middle, Upper, Lower)."""
@@ -174,7 +174,10 @@ def add_all_indicators(df: pd.DataFrame, params: dict = None) -> pd.DataFrame:
     df['macd_hist'] = macd_hist
     
     df['atr'] = calculate_atr(df, p.get('atr_period', 14))
-    df['adx'] = calculate_adx(df, p.get('adx_period', 14))
+    adx, pos_di, neg_di = calculate_adx(df, p.get('adx_period', 14))
+    df['adx'] = adx
+    df['pos_di'] = pos_di
+    df['neg_di'] = neg_di
     
     bb_mid, bb_upper, bb_lower = calculate_bollinger_bands(df)
     df['bb_upper'] = bb_upper

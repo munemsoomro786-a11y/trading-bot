@@ -133,13 +133,19 @@ class TradingStrategy:
                 "pattern_name": pattern_name
             }
 
+        pos_di = float(closed_candle['pos_di']) if 'pos_di' in closed_candle and not np.isnan(closed_candle['pos_di']) else 25.0
+        neg_di = float(closed_candle['neg_di']) if 'neg_di' in closed_candle and not np.isnan(closed_candle['neg_di']) else 20.0
+
         # =========================================================================
-        # 3. BULLISH LONG CONFLUENCE (Allowed ONLY in MTF & Local Uptrend)
+        # 3. BULLISH LONG CONFLUENCE (Allowed ONLY when Directional Trend is UP)
         # =========================================================================
-        if is_macro_uptrend:
+        if is_macro_uptrend and (pos_di > neg_di):
+            # Price MUST be above EMAs and fast EMA sloping UP (No buying into a falling drop!)
+            short_term_uptrend = (close > ema_fast) and (close > ema_slow) and (ema_fast >= prev_ema_fast)
+            
             # Clean EMA 9/21 Crossover or Fresh Bullish Momentum Alignment
             ema_crossover = (prev_ema_fast <= prev_ema_slow and ema_fast > ema_slow)
-            ema_aligned = ema_crossover or (ema_fast > ema_slow and close > ema_fast and macd_hist > prev_macd_hist and rsi > prev_rsi)
+            ema_aligned = (ema_crossover or (ema_fast > ema_slow and macd_hist > prev_macd_hist)) and short_term_uptrend
                           
             rsi_bullish = 40 <= rsi <= 66 and rsi > prev_rsi
             macd_bullish = macd_hist > prev_macd_hist and macd_hist > -atr * 0.1
@@ -152,7 +158,7 @@ class TradingStrategy:
             if ema_aligned and rsi_bullish and macd_bullish and volume_surge and bullish_candle and not_at_resistance and not_overextended_long:
                 signal = "BUY"
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bullish else ""
-                reason = f"🚀 [MTF UPTREND] Bullish Confluence: EMA Cross/Momentum + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
+                reason = f"🚀 [MTF UPTREND] Bullish Confluence: EMA Cross/Momentum + +DI ({pos_di:.1f} > -DI) + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
                 
                 # Dynamic ATR-based Stop Loss & Take Profit (min 0.5% buffer)
                 sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.005)
@@ -160,12 +166,15 @@ class TradingStrategy:
                 take_profit = current_live_price + (sl_dist * self.rr_ratio)
 
         # =========================================================================
-        # 4. BEARISH SHORT CONFLUENCE (Allowed ONLY in MTF & Local Downtrend)
+        # 4. BEARISH SHORT CONFLUENCE (Allowed ONLY when Directional Trend is DOWN)
         # =========================================================================
-        elif is_macro_downtrend:
+        elif is_macro_downtrend and (neg_di > pos_di):
+            # Price MUST be below EMAs and fast EMA sloping DOWN (No shorting into a rising pump!)
+            short_term_downtrend = (close < ema_fast) and (close < ema_slow) and (ema_fast <= prev_ema_fast)
+
             # Clean EMA 9/21 Bearish Crossover or Fresh Bearish Momentum Alignment
             ema_bearish_crossover = (prev_ema_fast >= prev_ema_slow and ema_fast < ema_slow)
-            ema_bearish_aligned = ema_bearish_crossover or (ema_fast < ema_slow and close < ema_fast and macd_hist < prev_macd_hist and rsi < prev_rsi)
+            ema_bearish_aligned = (ema_bearish_crossover or (ema_fast < ema_slow and macd_hist < prev_macd_hist)) and short_term_downtrend
 
             rsi_bearish = 34 <= rsi <= 60 and rsi < prev_rsi
             macd_bearish = macd_hist < prev_macd_hist and macd_hist < atr * 0.1
@@ -178,7 +187,7 @@ class TradingStrategy:
             if ema_bearish_aligned and rsi_bearish and macd_bearish and volume_surge and bearish_candle and not_at_support and not_overextended_short:
                 signal = "SELL"
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bearish else ""
-                reason = f"📉 [MTF DOWNTREND] Bearish Confluence: EMA Cross/Breakdown + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
+                reason = f"📉 [MTF DOWNTREND] Bearish Confluence: EMA Cross/Breakdown + -DI ({neg_di:.1f} > +DI) + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
                 
                 # Dynamic ATR-based Stop Loss & Take Profit (min 0.5% buffer)
                 sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.005)
