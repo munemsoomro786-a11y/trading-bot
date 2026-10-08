@@ -6,16 +6,16 @@ class TradingStrategy:
     def __init__(self, config: dict = None):
         self.config = config or {}
         self.rr_ratio = self.config.get("risk_reward_ratio", 1.5)
-        self.atr_sl_mult = self.config.get("atr_sl_multiplier", 1.5)
-        self.adx_threshold = self.config.get("adx_threshold", 20.0)
+        self.atr_sl_mult = self.config.get("atr_sl_multiplier", 2.0)
+        self.adx_threshold = self.config.get("adx_threshold", 22.0)
 
     def analyze(self, df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
         """
-        HIGH-ACCURACY OPTIMIZED MULTI-CONFLUENCE STRATEGY ENGINE:
+        HIGH-ACCURACY NO-NOISE STRATEGY ENGINE:
         1. Multi-Timeframe (MTF) 1-Hour Macro Trend Alignment.
-        2. ADX Market Regime Filter (>= 20.0 Trend Strength).
+        2. ADX Trend Strength Filter (>= 22.0) & Directional Index Separation (+DI / -DI).
         3. Clean EMA 9/21 Crossover & MACD Momentum Acceleration.
-        4. Dynamic ATR Volatility-Based Stop Loss & Take Profit.
+        4. Noise-Resistant ATR Stop Loss (2.0x ATR, min 1.2% floor).
         5. Overbought/Oversold & Support/Resistance Protection.
         """
         if df is None or len(df) < 30:
@@ -50,8 +50,8 @@ class TradingStrategy:
         macd_hist = float(closed_candle['macd_hist'])
         prev_macd_hist = float(prev_candle['macd_hist'])
         
-        adx = float(closed_candle['adx']) if 'adx' in closed_candle and not np.isnan(closed_candle['adx']) else 20.0
-        atr = float(closed_candle['atr']) if 'atr' in closed_candle and not np.isnan(closed_candle['atr']) else current_live_price * 0.01
+        adx = float(closed_candle['adx']) if 'adx' in closed_candle and not np.isnan(closed_candle['adx']) else 22.0
+        atr = float(closed_candle['atr']) if 'atr' in closed_candle and not np.isnan(closed_candle['atr']) else current_live_price * 0.012
         
         support = float(closed_candle['support']) if 'support' in closed_candle else current_live_price * 0.98
         resistance = float(closed_candle['resistance']) if 'resistance' in closed_candle else current_live_price * 1.02
@@ -61,10 +61,10 @@ class TradingStrategy:
         pattern_bearish = bool(closed_candle.get('pattern_bearish', False))
         pattern_name = str(closed_candle.get('pattern_name', 'None'))
 
-        # Volume Confirmation (> 0.90x Volume SMA)
+        # Volume Confirmation (> 0.95x Volume SMA)
         vol_sma = df['volume'].rolling(window=20).mean().iloc[-2] if 'volume' in df.columns else 0
         closed_vol = float(closed_candle['volume']) if 'volume' in closed_candle else 0
-        volume_surge = (closed_vol >= vol_sma * 0.90) if vol_sma > 0 else True
+        volume_surge = (closed_vol >= vol_sma * 0.95) if vol_sma > 0 else True
 
         # =========================================================================
         # 1. MULTI-TIMEFRAME (MTF) HIGHER TIMEFRAME TREND FILTER (1-HOUR CHART)
@@ -112,7 +112,7 @@ class TradingStrategy:
             }
 
         # =========================================================================
-        # 2. ADX MARKET REGIME CHECK (Block Trades in Weak Sideways Market < 20.0)
+        # 2. ADX MARKET REGIME CHECK (Block Trades in Weak Sideways Market < 22.0)
         # =========================================================================
         is_trending_market = adx >= self.adx_threshold
 
@@ -136,10 +136,13 @@ class TradingStrategy:
         pos_di = float(closed_candle['pos_di']) if 'pos_di' in closed_candle and not np.isnan(closed_candle['pos_di']) else 25.0
         neg_di = float(closed_candle['neg_di']) if 'neg_di' in closed_candle and not np.isnan(closed_candle['neg_di']) else 20.0
 
+        # Require a clear +DI / -DI gap to avoid choppy false breakouts
+        di_gap_sufficient = abs(pos_di - neg_di) >= 2.0
+
         # =========================================================================
         # 3. BULLISH LONG CONFLUENCE (Allowed ONLY when Directional Trend is UP)
         # =========================================================================
-        if is_macro_uptrend and (pos_di > neg_di):
+        if is_macro_uptrend and (pos_di > neg_di) and di_gap_sufficient:
             # Price MUST be above EMAs and fast EMA sloping UP (No buying into a falling drop!)
             short_term_uptrend = (close > ema_fast) and (close > ema_slow) and (ema_fast >= prev_ema_fast)
             
@@ -160,15 +163,15 @@ class TradingStrategy:
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bullish else ""
                 reason = f"🚀 [MTF UPTREND] Bullish Confluence: EMA Cross/Momentum + +DI ({pos_di:.1f} > -DI) + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
                 
-                # Dynamic ATR-based Stop Loss & Take Profit (min 0.5% buffer)
-                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.005)
+                # Noise-Resistant Dynamic ATR Stop Loss & Take Profit (min 1.2% buffer)
+                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.012)
                 stop_loss = current_live_price - sl_dist
                 take_profit = current_live_price + (sl_dist * self.rr_ratio)
 
         # =========================================================================
         # 4. BEARISH SHORT CONFLUENCE (Allowed ONLY when Directional Trend is DOWN)
         # =========================================================================
-        elif is_macro_downtrend and (neg_di > pos_di):
+        elif is_macro_downtrend and (neg_di > pos_di) and di_gap_sufficient:
             # Price MUST be below EMAs and fast EMA sloping DOWN (No shorting into a rising pump!)
             short_term_downtrend = (close < ema_fast) and (close < ema_slow) and (ema_fast <= prev_ema_fast)
 
@@ -189,8 +192,8 @@ class TradingStrategy:
                 pattern_str = f" + Pattern ({pattern_name})" if pattern_bearish else ""
                 reason = f"📉 [MTF DOWNTREND] Bearish Confluence: EMA Cross/Breakdown + -DI ({neg_di:.1f} > +DI) + ADX ({adx:.1f}) + RSI ({rsi:.1f}){pattern_str}"
                 
-                # Dynamic ATR-based Stop Loss & Take Profit (min 0.5% buffer)
-                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.005)
+                # Noise-Resistant Dynamic ATR Stop Loss & Take Profit (min 1.2% buffer)
+                sl_dist = max(atr * self.atr_sl_mult, current_live_price * 0.012)
                 stop_loss = current_live_price + sl_dist
                 take_profit = current_live_price - (sl_dist * self.rr_ratio)
 

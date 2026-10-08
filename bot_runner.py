@@ -17,6 +17,7 @@ class TradingBotRunner:
         self.thread = None
         self.logs = []
         self.market_prices = {}
+        self.symbol_cooldowns = {}
 
     def log(self, message: str, level: str = "INFO"):
         """Add timestamped log entry."""
@@ -94,12 +95,20 @@ class TradingBotRunner:
                             status = "🛡️ BREAK-EVEN HIT (NO LOSS)"
                         else:
                             status = "🛑 STOP LOSS HIT"
+                            # Cooldown: Block re-entering this symbol for 45 minutes (2700s) after SL hit
+                            self.symbol_cooldowns[trade["symbol"]] = time.time() + 2700
+                            self.log(f"⏳ Cooldown activated for {trade['symbol']} (45 min pause after SL hit).", "WARNING")
                         
                         pnl_str = f"+${trade['pnl']:.2f}" if trade['pnl'] > 0 else f"-${abs(trade['pnl']):.2f}"
                         self.log(f"{status} on {trade['symbol']} ({trade['side']}) at ${trade['exit_price']:.2f}. PnL: {pnl_str}", "SUCCESS" if trade['pnl'] > 0 else "ERROR")
 
                     # 3. If bot active and positions under limit, evaluate strategy signal
                     if len(self.account.positions) < max_positions:
+                        # Check if symbol is under loss cooldown
+                        cooldown_until = self.symbol_cooldowns.get(symbol, 0)
+                        if time.time() < cooldown_until:
+                            continue
+
                         analysis = self.strategy.analyze(df, htf_df=htf_df)
                         sig = analysis["signal"]
                         reason = analysis["reason"]

@@ -8,9 +8,9 @@ DEFAULT_CONFIG = {
     "timeframe": "15m",
     "initial_balance": 100.0,     # $100 Starting Balance
     "risk_per_trade_pct": 2.0,    # Risk 2% of total equity per trade
-    "risk_reward_ratio": 1.5,     # 1:1.5 Achievable Risk to Reward Ratio
-    "atr_sl_multiplier": 1.5,     # Stop Loss distance = 1.5 * ATR
-    "adx_threshold": 20.0,        # Trend filter threshold
+    "risk_reward_ratio": 1.5,     # 1:1.5 Risk to Reward Ratio
+    "atr_sl_multiplier": 2.0,     # Stop Loss distance = 2.0 * ATR
+    "adx_threshold": 22.0,        # Trend filter threshold (Noise Protection)
     "max_open_positions": 2,      # Max 2 concurrent positions
     "pairs_to_monitor": [
         "BTC/USDT", 
